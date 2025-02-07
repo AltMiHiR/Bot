@@ -105,7 +105,7 @@ DATA = ThreadSafeList()
 
 app = Client(ACCOUNT["phone_number"], session_string=ACCOUNT["session"], max_message_cache_size=0)
 
-@app.on_message(filters.group & filters.user([5961091462, 277756078, 756558173, 126203394, 108918720]))
+@app.on_message(filters.group & filters.user([5883706596, 5917221056, 5813413216, 5860140820, 5434534346]))
 async def _tracker(client: Client, message: Message):
     data = {
         "user_id": message.from_user.id,
