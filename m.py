@@ -1,143 +1,76 @@
+import os
 import pytz
-import logging
-import asyncio
-import threading
+
+from pymongo import MongoClient
 
 from pyrogram import Client, filters, idle
 from pyrogram.types import Message
-
-from datetime import datetime, timedelta
-from motor.motor_asyncio import AsyncIOMotorClient
-
+from pyrogram.handlers import MessageHandler, DeletedMessagesHandler
 
 
 IST = pytz.timezone('Asia/Kolkata')
 
-_mongo_async_ = AsyncIOMotorClient("mongodb+srv://MIHIRxKHUSHI:print('MIKU1311')@thealtron.rwuawpe.mongodb.net/?retryWrites=true&w=majority")
-TrackDataCol = _mongo_async_["MFBot"]['TrackData']
+API_ID = 25981592
+API_HASH = "709f3c9d34d83873d3c7e76cdd75b866"
+BOT_TOKEN = "6052402912:AAGGodIAMUUwU1f-LkTEWhT-taqlj31TYsw"
+SESSIONS = [
+    "BAGMcpgAqyJFu3AABcNw_D5uL54JMNCZKqNxykOLDGPPPHHesgRoHMM4XACKDxsYhF3r9yb7OgT7QiNL5WFQNuZb5beJuMD9w-Fkh0kz2tWQT0YtbShsdb-zW4HjrdGk3LUxb6JUG4_pZQZkq0a5VVSMfRlQtCvIgdjv4ngGjJgQokU1PrAcc99WuR4KmmzdaM4Iv9RrOmd43-yvcQp9M1N54CZeiMsQKD34aZWcf0kHYkns8jFZrUg53I81M2EOOvejE75Ms9awiE_mL8frUcj8QvshKdBvG7FjL5q_n_ACoby7jwV3aXS6fPbvjfshdEuPVHYPVQGjOVPBKxdNrYLyDcrePQAAAAG_Qa6bAA",
+    "BAGMcpgAjXnPqQXO_1welgUqE4gbpxpCEbgexm2KxTB_5Stm_VSLuzU_-fH5tOKufqgGaxcByPGU0_hM63NtY1WZy4KigXicUdmQ5yrGMVe6ZH4kYj1EnuxaKLHcPGhIyIENUJevPoMvFQjIVeKhg56nTUExrlWhu3hXieVP1uPkXGnR194TjdHytO71Mq7zf-AinLuYZaLMKBH93cXDgid0m_fPLY1M4Uczq9d86w45VqtWk9lTUI2-y5vJX_8sZ7BGn-mfqd1O9ix-wSh5DQ_87UXidh9n549vxROyfRmetBMuXb8016B13EGQrqIEBZXUHrWS7VfftchKqio7Cp2r4bsBsAAAAAHVxWm6AA"
+]
 
-ACCOUNT = {
-    "session": "BQGMcpgAjY5X0m8kJLmNGGTlpoVz9hoa3GBJfjPQnef6WZkn-rQ4GHPDUrdpGmXeRVop5qjacSU0jBGJd6SyLMZ-OOWJoSQIp2X0KUdIHcI2_gLSqZn8sQKUQ2EDSywYk3h-s0eLVmtakWzHi219srMZ4XWoayZufBqvb-bfCmZlkHn0jnmlYaJ2qti_oMkpx0Y7OPP2e-Z5F2qs8EcQb2TsXzgtijExd7IGEMu3oYG8Mcl2AE0E4iFzlu3wmBW7Uxq_J2Kz3WtzT-u5Ms10jAfHkhLuNZY9vlJVW9tdqKjGh6HT8Gv3HEEjUlGlJ_xbS8LvTnIlo42Ui1OZlaPkslVkluTVFQAAAAHMeMGEAA",
-    "phone_number": "+919761301924"
-}
+_mongo_client_ = MongoClient("mongodb+srv://MIHIRxKHUSHI:print('MIKU1311')@thealtron.rwuawpe.mongodb.net/?retryWrites=true&w=majority")
+ChatsCol = _mongo_client_['DeleteDetector']['Chats']
 
-CHATS = {
-    -1001170860302: "@MarketStrong",
-    -1001527007389: "https://t.me/joinchat/TeqEqGaau7UyZTFk",
-    -1001469840857: "https://t.me/joinchat/zRL6AlXSWtkzYTFk",
-    -1001325622242: "https://t.me/joinchat/dNMbjY4oOwY4OGI0",
-    -1001595987025: "https://t.me/joinchat/ybXSq6ZDVDcwNDg8",
-    -1001493802984: "https://t.me/joinchat/SMPfqFkJn-gb_pZmMMvXJQ",
-    -1001320290633: "https://t.me/joinchat/IWC4FxHDbeOVgyLntkEeaQ",
-    # -1001153450526: "https://t.me/joinchat/J_aD1Jjfft8xNzNk",
-    # -1001155030078: "https://t.me/joinchat/Kk-O3hRHsvRl-q_uuORacA",
-    # -1001205313235: "https://t.me/joinchat/PmGvgh0v0sJkLoxBe0d3Rg",
-    # -1001242480702: "https://t.me/joinchat/QcUw8BTnVbPRexXPUA1JlQ",
-    # -1001214829860: "@CHRISTIANSEXCLUB",
-    # -1001293195336: "@MADEITOUTTHASTONE",
-    # -1001232993323: "@kofecktkassin",
-    # -1001147510917: "https://t.me/joinchat/McFg_URloIV0FesEJDfAAw",
-    # -1001713249177: "https://t.me/joinchat/LxwyGSxGIrIzOGE1",
-    # -1002148525952: "https://t.me/joinchat/Jzyphd-fWPwwZWNl"
-}
+if not os.path.exists("cache"):
+    os.mkdir("cache")
 
-class ThreadSafeList(list):
-    def __init__(self, *args):
-        super().__init__(*args)
-        self._lock = threading.Lock()
+apps: list[Client] = []
+for session in SESSIONS:
+    app = Client("MBot", api_id=API_ID, api_hash=API_HASH, session_string=session, max_message_cache_size=0)
+    apps.append(app)
 
-    def append(self, item):
-        with self._lock:
-            super().append(item)
-
-    def extend(self, iterable):
-        with self._lock:
-            super().extend(iterable)
-
-    def copy_with_clear(self):
-        with self._lock:
-            data = super().copy()
-            super().clear()
-            return data
-
-    def copy(self):
-        with self._lock:
-            return super().copy()
-
-    def remove(self, item):
-        with self._lock:
-            super().remove(item)
-
-    def pop(self, index=-1):
-        with self._lock:
-            return super().pop(index)
-
-    def clear(self):
-        with self._lock:
-            super().clear()
-
-    def __contains__(self, item):
-        with self._lock:
-            return super().__contains__(item)
-
-    def __iter__(self):
-        with self._lock:
-            return iter(super().copy())
-
-    def __len__(self):
-        with self._lock:
-            return super().__len__()
-
-    def __getitem__(self, index):
-        with self._lock:
-            return super().__getitem__(index)
-
-    def __setitem__(self, index, value):
-        with self._lock:
-            super().__setitem__(index, value)
-
-    def __delitem__(self, index):
-        with self._lock:
-            super().__delitem__(index)
+bot = Client("Bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN, max_message_cache_size=3)
 
 
-DATA = ThreadSafeList()
-
-app = Client(ACCOUNT["phone_number"], session_string=ACCOUNT["session"], max_message_cache_size=0)
-
-@app.on_message(filters.group & filters.user([5883706596, 5917221056, 5813413216, 5860140820, 5434534346]))
-async def _tracker(client: Client, message: Message):
-    data = {
-        "user_id": message.from_user.id,
-        "chat_id": message.chat.id,
-        "message_id": message.id,
-        "timestamp": int(message.date.timestamp())
-    }
-    DATA.append(data)
-
-
-async def main():
-    await app.start()
-    print("USERBOT STARTED!\n")
-
-    while True:
-        await asyncio.sleep(1800)
-
-        if len(DATA) > 0:
-            data = DATA.copy_with_clear()
-            await TrackDataCol.insert_many(data)
-            day = datetime.now(IST)
-            print(f"ADDED_{len(data)}_DOCS - {day.strftime('%d-%m-%Y %H:%M:%S')}")
-        else:
-            day = datetime.now(IST)
-            print(f"ADDED_0_DOCS - {day.strftime('%d-%m-%Y %H:%M:%S')}")
-
-    await app.stop()
-    print("USERBOT STOPPED!")
+async def _save_incoming_message(client: Client, message: Message):
+    from_user_name = message.from_user.first_name
+    if message.from_user.last_name:
+        from_user_name += " " + message.from_user.last_name
+    if message.from_user.id != client.me.id:
+        to_user = client.me
+    else:
+        to_user = message.chat
+    to_user_name = to_user.first_name
+    if to_user.last_name:
+        to_user_name += " " + to_user.last_name
+    ChatsCol.insert_one({"id": message.id, "from": from_user_name, "to": to_user_name, "time": message.date.astimezone(IST).strftime("%d-%m-%Y %H:%M:%S"), "text": message.text})
 
 
-logging.getLogger("pyrogram").setLevel(logging.ERROR)
-logging.getLogger("asyncio").setLevel(logging.ERROR)
+async def _report_deleted_message(client: Client, messages: list[Message]):
+    message_ids = [message.id for message in messages]
+    chats = ChatsCol.find({"id": {"$in": message_ids}})
+    content = ""
+    for chat in chats:
+        content += f"#MESSAGE_{chat['id']}\n - FROM: {chat['from']}\n - TO: {chat['to']}\n - TIME: {chat['time']}\n - TEXT: {chat['text']}\n\n\n"
+    if len(content) > 0:
+        file_name = f"cache/{client.me.id}.txt"
+        with open(file_name, "w", encoding="utf8") as file:
+            file.write(content)
+        caption = f"⚠️ MESSAGE_DELETE_DETECTED!\n\nAccount = {client.me.mention}\nDeleted = {len(message_ids)}"
+        await bot.send_document("PyXen", file_name, caption=caption, file_name="Deleted_Messages.txt")
+        await bot.send_document(7536250282, file_name, caption=caption, file_name="Deleted_Messages.txt")
+        os.remove(file_name)
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
+for app in apps:
+    app.add_handler(MessageHandler(_save_incoming_message, filters.private & filters.text))
+    app.add_handler(DeletedMessagesHandler(_report_deleted_message))
+    app.start()
+bot.start()
+print("STARTED!")
+
+idle()
+
+for app in apps:
+    app.stop()
+bot.stop()
+print("STOPPED!")
